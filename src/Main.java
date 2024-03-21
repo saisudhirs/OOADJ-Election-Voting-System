@@ -46,7 +46,7 @@ class VoterManager {
     }
 
     private void readVotersFromCSV() {
-        try (BufferedReader voterFile = new BufferedReader(new FileReader("voters.csv"))) {
+        try (BufferedReader voterFile = new BufferedReader(new FileReader("src/voters.csv"))) {
             String line;
             while ((line = voterFile.readLine()) != null) {
                 List<String> tokens = splitString(line, ',');
@@ -60,7 +60,7 @@ class VoterManager {
     }
 
     private void appendVoterToCSV(String voterID, String name) {
-        try (BufferedWriter voterFile = new BufferedWriter(new FileWriter("voters.csv", true))) {
+        try (BufferedWriter voterFile = new BufferedWriter(new FileWriter("src/voters.csv", true))) {
             voterFile.write(voterID + "," + name + "\n");
         } catch (IOException e) {
             e.printStackTrace();
@@ -143,7 +143,7 @@ class ElectionSystem {
     }
 
     private void readVotersFromFile() {
-        try (BufferedReader voterFile = new BufferedReader(new FileReader("voters.csv"))) {
+        try (BufferedReader voterFile = new BufferedReader(new FileReader("src/voters.csv"))) {
             String line;
             while ((line = voterFile.readLine()) != null) {
                 List<String> tokens = splitString(line, ',');
@@ -162,7 +162,7 @@ class ElectionSystem {
     }
 
     private void readCandidatesFromFile() {
-        try (BufferedReader candidateFile = new BufferedReader(new FileReader("candidates.csv"))) {
+        try (BufferedReader candidateFile = new BufferedReader(new FileReader("src/candidates.csv"))) {
             String line;
             while ((line = candidateFile.readLine()) != null) {
                 List<String> tokens = splitString(line, ',');
@@ -176,7 +176,7 @@ class ElectionSystem {
     }
 
     private void readVotesFromFile() {
-        try (BufferedReader voteFile = new BufferedReader(new FileReader("votes.csv"))) {
+        try (BufferedReader voteFile = new BufferedReader(new FileReader("src/votes.csv"))) {
             String line;
             while ((line = voteFile.readLine()) != null) {
                 List<String> tokens = splitString(line, ',');
@@ -190,7 +190,7 @@ class ElectionSystem {
     }
 
     private void writeVoteToFile(Vote vote) {
-        try (BufferedWriter voteFile = new BufferedWriter(new FileWriter("votes.csv", true))) {
+        try (BufferedWriter voteFile = new BufferedWriter(new FileWriter("src/votes.csv", true))) {
             voteFile.write(vote.getTimestamp() + "," + vote.getVoterID() + "," + vote.getVoterName() + "," + vote.getChoice() + "\n");
         } catch (IOException e) {
             e.printStackTrace();
