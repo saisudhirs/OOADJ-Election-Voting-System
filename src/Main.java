@@ -322,51 +322,133 @@ public class Main {
     public static void main(String[] args) {
         VoterManager voterManager = new VoterManager();
         ElectionSystem election = new ElectionSystem();
-        int choice;
+        int mode, choice;
 
-        do {
-            System.out.println("\n\n ##### Welcome to Election/Voting 2024 #####");
 
-            System.out.println("\n\nElection Services:");
-            System.out.println(" 1. Cast the Vote");
-            System.out.println("\nResult Services:");
-            System.out.println(" 2. Find Vote Count");
-            System.out.println(" 3. Find Leading Candidate");
-            System.out.println("\nVoter Services:");
-            System.out.println(" 4. Add a Voter");
-            System.out.println(" 5. Display Registered Voters");
-            System.out.println("\n 0. Exit");
+        System.out.println("\n\n ##### Welcome to Election System #####");
+        System.out.println("\n\nSelect mode of operation:");
+        System.out.println(" 1. Registrations (Candidate nominations & Voter addition)");
+        System.out.println(" 2. Election ");
+        System.out.println(" 3. Results");
+        System.out.println(" 4. Reset");
 
-            System.out.println("\n\n Please enter your choice: ");
-            Scanner scanner = new Scanner(System.in);
-            choice = scanner.nextInt();
+        System.out.println("\n\n Please enter your choice: ");
+        Scanner scanner = new Scanner(System.in);
+        mode = scanner.nextInt();
 
-            switch (choice) {
-                case 1:
-                    election.startVoting();
-                    break;
-                case 2:
-                    election.votesCount();
-                    break;
-                case 3:
-                    election.getLeadingCandidate();
-                    break;
-                case 5:
-                    voterManager.displayVoters();
-                    break;
-                case 0:
-                    System.out.println("\n Exiting the program. Goodbye!\n");
-                    break;
-                default:
-                    System.out.println("\n Error: Invalid Choice");
-                case 4:
-                    System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
-                    scanner.nextLine();
-                    String name = scanner.nextLine();
-                    String voterID = voterManager.addVoter(name);
-                    System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
-                    break;
-            }
-        } while (choice != 0);
+        switch (mode) {
+            case 1:
+                do {
+                    System.out.println("\n\nRegistrations Mode\n");
+                    System.out.println(" 1. Nominate a Candidate");
+                    System.out.println(" 2. Add a Voter");
+                    System.out.println(" 3. Query Registered Voters");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 2:
+                            System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
+                            scanner.nextLine();
+                            String name = scanner.nextLine();
+                            String voterID = voterManager.addVoter(name);
+                            System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
+                            break;
+                        case 3:
+                            voterManager.displayVoters();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 2:
+                do {
+                    System.out.println("\n\nElection Mode\n");
+                    System.out.println(" 1. Cast Vote");
+                    System.out.println(" 2. Check Turnout");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.startVoting();
+                            break;
+                        case 2:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 3:
+                do {
+                    System.out.println("\n\nResult Mode\n");
+                    System.out.println(" 1. Find Leading Candidate");
+                    System.out.println(" 2. Get Detailed Vote Count");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.getLeadingCandidate();
+                            break;
+                        case 2:
+                            election.votesCount();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 4:
+                do {
+                    System.out.println("\n\nReset Mode\n");
+                    System.out.println(" 1. Reset Election");
+                    System.out.println(" 2. Hard Reset (clear all details)");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 2:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+        }
     }
 }
