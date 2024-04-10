@@ -1,4 +1,5 @@
 import java.io.*;
+import java.text.DecimalFormat;
 import java.util.*;
 
 class Voter {
@@ -78,13 +79,34 @@ class VoterManager {
 
 class Candidate {
     private final String name;
+    private final String partyName;
 
-    public Candidate(String name) {
+    public Candidate(String name, String partyName) {
         this.name = name;
+        this.partyName = partyName;
     }
 
     public String getName() {
         return name;
+    }
+
+    public String getPartyName() {
+        return partyName;
+    }
+}
+
+class CandidateManager {
+    public static void addCandidate(String name, String partyName) {
+        appendCandidateToCSV(name, partyName);
+        System.out.println(name + " added successfully for " + partyName);
+    }
+
+    private static void appendCandidateToCSV(String name, String partyName) {
+        try (BufferedWriter candidatesFile = new BufferedWriter(new FileWriter("src/candidates.csv", true))) {
+            candidatesFile.write(name + "," + partyName + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
 
@@ -167,7 +189,7 @@ class ElectionSystem {
             while ((line = candidateFile.readLine()) != null) {
                 List<String> tokens = splitString(line, ',');
                 if (tokens.size() == 2) {
-                    candidates.add(new Candidate(tokens.getFirst()));
+                    candidates.add(new Candidate(tokens.get(0), tokens.get(1)));
                 }
             }
         } catch (IOException e) {
@@ -276,7 +298,7 @@ class ElectionSystem {
 
         System.out.println("\n\n #### Voting Statistics ####");
         for (int i = 1; i <= candidates.size(); i++) {
-            System.out.println(candidates.get(i - 1).getName() + " - " + voteCounts[i]);
+            System.out.println(candidates.get(i - 1).getName() + " of " + candidates.get(i - 1).getPartyName() + " - " + voteCounts[i]);
         }
     }
 
@@ -299,15 +321,32 @@ class ElectionSystem {
 
         System.out.println("\n\n  #### Leading Candidate(s) ####\n\n");
         if (maxVotes > 0) {
-            if (leadingCandidates.size() == 1) {
-                System.out.println("[" + leadingCandidates.getFirst() + "]");
-            } else {
-                System.out.println("Tie between the following candidates:");
-                leadingCandidates.forEach(candidate -> System.out.println("[" + candidate + "]"));
+            if (!leadingCandidates.isEmpty()) {
+                if (leadingCandidates.size() == 1) {
+                    System.out.println("[" + leadingCandidates.getFirst() + "]");
+                } else {
+                    System.out.println("Tie between the following candidates:");
+                    leadingCandidates.forEach(candidate -> System.out.println("[" + candidate + "]"));
+                }
             }
         } else {
             System.out.println("----- Warning !!! No-win situation ----");
         }
+    }
+
+    public void checkTurnout() {
+        int totalVoters = voters.size();
+        int totalVotes = votes.size();
+
+        double turnoutFraction = (double) totalVotes / totalVoters;
+        double turnoutPercentage = turnoutFraction * 100;
+
+        DecimalFormat df = new DecimalFormat("#.##");
+
+        System.out.println("\n\n #### Turnout Statistics ####");
+        System.out.println("Total Voters: " + totalVoters);
+        System.out.println("Total Votes Cast: " + totalVotes);
+        System.out.println("Turnout: " + df.format(turnoutFraction) + " (" + df.format(turnoutPercentage) + "%)");
     }
 
     private String toLowerCase(String str) {
@@ -316,57 +355,143 @@ class ElectionSystem {
 }
 
 public class Main {
-    private static final String[] CANDIDATE_NAMES = {"Candidate A", "Candidate B", "Candidate C", "Candidate D"};
-    private static final int CANDIDATE_COUNT = CANDIDATE_NAMES.length;
 
     public static void main(String[] args) {
         VoterManager voterManager = new VoterManager();
         ElectionSystem election = new ElectionSystem();
-        int choice;
 
-        do {
-            System.out.println("\n\n ##### Welcome to Election/Voting 2024 #####");
+        int mode, choice;
 
-            System.out.println("\n\nElection Services:");
-            System.out.println(" 1. Cast the Vote");
-            System.out.println("\nResult Services:");
-            System.out.println(" 2. Find Vote Count");
-            System.out.println(" 3. Find Leading Candidate");
-            System.out.println("\nVoter Services:");
-            System.out.println(" 4. Add a Voter");
-            System.out.println(" 5. Display Registered Voters");
-            System.out.println("\n 0. Exit");
 
-            System.out.println("\n\n Please enter your choice: ");
-            Scanner scanner = new Scanner(System.in);
-            choice = scanner.nextInt();
+        System.out.println("\n\n ##### Welcome to Election System #####");
+        System.out.println("\n\nSelect mode of operation:");
+        System.out.println(" 1. Registrations (Candidate nominations & Voter addition)");
+        System.out.println(" 2. Election ");
+        System.out.println(" 3. Results");
+        System.out.println(" 4. Reset");
 
-            switch (choice) {
-                case 1:
-                    election.startVoting();
-                    break;
-                case 2:
-                    election.votesCount();
-                    break;
-                case 3:
-                    election.getLeadingCandidate();
-                    break;
-                case 5:
-                    voterManager.displayVoters();
-                    break;
-                case 0:
-                    System.out.println("\n Exiting the program. Goodbye!\n");
-                    break;
-                default:
-                    System.out.println("\n Error: Invalid Choice");
-                case 4:
-                    System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
-                    scanner.nextLine();
-                    String name = scanner.nextLine();
-                    String voterID = voterManager.addVoter(name);
-                    System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
-                    break;
-            }
-        } while (choice != 0);
+        System.out.println("\n\n Please enter your choice: ");
+        Scanner scanner = new Scanner(System.in);
+        mode = scanner.nextInt();
+
+        switch (mode) {
+            case 1:
+                do {
+                    System.out.println("\n\nRegistrations Mode\n");
+                    System.out.println(" 1. Nominate a Candidate");
+                    System.out.println(" 2. Add a Voter");
+                    System.out.println(" 3. Query Registered Voters");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            System.out.println("\n\n #### Enter the Name of the New Candidate ####\n\n");
+                            scanner.nextLine();
+                            String candidateName = scanner.nextLine();
+                            System.out.println("\n\n #### Enter the Name of the Candidate's Party ####\n\n");
+                            String partyName = scanner.nextLine();
+                            CandidateManager.addCandidate(candidateName, partyName);
+                            break;
+                        case 2:
+                            System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
+                            scanner.nextLine();
+                            String name = scanner.nextLine();
+                            String voterID = voterManager.addVoter(name);
+                            System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
+                            break;
+                        case 3:
+                            voterManager.displayVoters();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 2:
+                do {
+                    System.out.println("\n\nElection Mode\n");
+                    System.out.println(" 1. Cast Vote");
+                    System.out.println(" 2. Check Turnout");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.startVoting();
+                            break;
+                        case 2:
+                            election.checkTurnout();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 3:
+                do {
+                    System.out.println("\n\nResult Mode\n");
+                    System.out.println(" 1. Find Leading Candidate");
+                    System.out.println(" 2. Get Detailed Vote Count");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.getLeadingCandidate();
+                            break;
+                        case 2:
+                            election.votesCount();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 4:
+                do {
+                    System.out.println("\n\nReset Mode\n");
+                    System.out.println(" 1. Reset Election");
+                    System.out.println(" 2. Hard Reset (clear all details)");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 2:
+                            System.out.println("Under development"); // TODO
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+        }
     }
 }
