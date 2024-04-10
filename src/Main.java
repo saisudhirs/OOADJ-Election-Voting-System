@@ -352,7 +352,32 @@ class ElectionSystem {
     private String toLowerCase(String str) {
         return str.toLowerCase();
     }
+
+    public void resetElection() {
+        candidates.clear();
+        votes.clear();
+        File candidateFile = new File("src/candidates.csv");
+        File voteFile = new File("src/votes.csv");
+        candidateFile.delete();
+        voteFile.delete();
+        // You might want to also delete the candidates and votes data files
+        System.out.println("Election system reset successful (election details: candidates & votes cleared).");
+    }
+
+    public void hardReset() {
+        candidates.clear();
+        voters.clear();
+        votes.clear();
+        File candidateFile = new File("src/candidates.csv");
+        File voteFile = new File("src/votes.csv");
+        File voterFile = new File("src/voters.csv");
+        candidateFile.delete();
+        voteFile.delete();
+        voterFile.delete();
+        System.out.println("Election system hard reset successful (all details: candidates, votes & voters cleared).");
+    }
 }
+
 
 public class Main {
 
@@ -479,10 +504,10 @@ public class Main {
 
                     switch (choice) {
                         case 1:
-                            System.out.println("Under development"); // TODO
+                            election.resetElection();
                             break;
                         case 2:
-                            System.out.println("Under development"); // TODO
+                            election.hardReset();
                             break;
                         case 0:
                             System.out.println("\n Logging off...\n");
