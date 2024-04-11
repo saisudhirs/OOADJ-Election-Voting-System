@@ -1,66 +1,59 @@
+import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.Scanner;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 
 class Voter {
-    private final int id;
+    private final String id;
     private final String name;
 
-    public Voter(int id, String name) {
+    public Voter(String id, String name) {
         this.id = id;
         this.name = name;
     }
 
-    public int getId() {
+    public String getId() {
         return id;
     }
+
     public String getName() {
         return name;
     }
 }
 
 class VoterManager {
-    private final List<Voter> voters = new ArrayList<>();
-    private Connection connection;
-
+    private List<Voter> voters = new ArrayList<>();
+    private Connection conn;
     public VoterManager(Connection connection) {
-        this.connection = connection;
-        connectToDatabase();
-        refreshVotersFromDatabase();
+        this.conn = connection;
+        voters=readVotersFromDatabase();
     }
 
-    public List<Voter> getVoters() {
-        return voters;
-    }
-
-    public int addVoter(String name) {
-        int voterID = generateVoterID();
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO voters (id, name) VALUES (?, ?)");
-            preparedStatement.setInt(1, voterID);
-            preparedStatement.setString(2, name);
-            preparedStatement.executeUpdate();
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM voters");
-            while (resultSet.next()) {
-                System.out.println(resultSet.getInt("id")+"  "+resultSet.getString("name"));
-            }
-            voters.add(new Voter(voterID, name));
-            System.out.println("\n\n #### Added successfully! ####\n\n");
-            connection.commit();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    public String addVoter(String name) {
+        voters.clear();
+        voters=readVotersFromDatabase();
+        String voterID = generateVoterID();
+        voters.add(new Voter(voterID, name));
+        appendVoterToDatabase(voterID, name);
         return voterID;
     }
 
     public void displayVoters() {
+        voters.clear();
+        voters=readVotersFromDatabase();
         System.out.println("\n\n #### List of Registered Voters ####\n\n");
         for (Voter voter : voters) {
             System.out.println("Voter ID: " + voter.getId() + ", Name: " + voter.getName());
@@ -68,57 +61,41 @@ class VoterManager {
     }
 
 
-    public void refreshVotersFromDatabase() {
-        voters.clear();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM voters");
-            while (resultSet.next()) {
-                voters.add(new Voter(resultSet.getInt("id"), resultSet.getString("name")));
+
+    private List<Voter> readVotersFromDatabase() {
+        List<Voter> voters = new ArrayList<>();
+        String sql = "SELECT id, name FROM voter";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String voterID = rs.getString("id");
+                String name = rs.getString("name");
+                voters.add(new Voter(voterID, name));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error reading voters from the database: " + e.getMessage());
         }
-    }
-//
-//    private void appendVoterToDatabase(Connection connection, String voterID, String name) {
-//        String query = "INSERT INTO voters (id, name) VALUES (?, ?)";
-//        try (PreparedStatement statement = connection.prepareStatement(query)) {
-//            statement.setString(1, voterID);
-//            statement.setString(2, name);
-//            statement.executeUpdate();
-//            connection.commit(); // Commit the transaction
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-    private void connectToDatabase() {
-        try {
-            Class.forName("org.sqlite.JDBC");
-            connection = DriverManager.getConnection("jdbc:sqlite:voters.db");
-            createVotersTableIfNotExists();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        return voters;
     }
 
-    private void createVotersTableIfNotExists() {
-        try {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS voters (id TEXT PRIMARY KEY, name TEXT)");
+    private void appendVoterToDatabase(String voterID, String name) {
+        String sql = "INSERT INTO voter (id, name) VALUES (?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, voterID);
+            pstmt.setString(2, name);
+            pstmt.executeUpdate();
+            System.out.println("Voter added to the database.");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error appending voter to the database: " + e.getMessage());
         }
     }
-
 
     private List<String> splitString(String input, char delimiter) {
         return Arrays.asList(input.split(String.valueOf(delimiter)));
     }
 
-    private int generateVoterID() {
-        return voters.size() + 1;
+    private String generateVoterID() {
+        return "V" + (voters.size() + 1);
     }
 }
 
@@ -141,78 +118,79 @@ class Candidate {
 }
 
 class CandidateManager {
-    public static void addCandidate(String name, String partyName) {
-        insertCandidateIntoDatabase(name, partyName);
-        System.out.println(name + " added successfully for " + partyName);
-    }
-
-    private static void insertCandidateIntoDatabase(String name, String partyName) {
-        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:candidates.db")) {
-            // Create the candidates table if it does not exist
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate("CREATE TABLE IF NOT EXISTS candidates (id INTEGER PRIMARY KEY, name TEXT, party TEXT)");
+    public static void addCandidate(Connection conn, String name, String partyName) {
+        if (conn != null) {
+            try {
+                insertCandidate(conn, name, partyName);
+                System.out.println(name + " added successfully for " + partyName);
+            } catch (SQLException e) {
+                System.err.println("Error adding candidate: " + e.getMessage());
             }
-
-            // Insert data into the candidates table
-            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO candidates (name, party) VALUES (?, ?)");
-            preparedStatement.setString(1, name);
-            preparedStatement.setString(2, partyName);
-            preparedStatement.executeUpdate();
-            System.out.println("Candidate added successfully!");
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM candidates");
-            while (resultSet.next()) {
-                System.out.println(resultSet.getInt("id")+"  "+resultSet.getString("name")+resultSet.getString("party1"));
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } else {
+            System.err.println("Connection to database is null.");
         }
     }
 
+    private static void insertCandidate(Connection conn, String name, String partyName) throws SQLException {
+        String sql = "INSERT INTO candidates (name, party) VALUES (?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setString(2, partyName);
+            pstmt.executeUpdate();
+            displayCandidates(conn);
+
+        }
+    }
+    private static void displayCandidates(Connection conn) throws SQLException {
+        String sql = "SELECT * FROM candidates";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            ResultSet rs = pstmt.executeQuery();
+            System.out.println("\nCandidates Table:");
+            while (rs.next()) {
+                System.out.println("ID: " + rs.getInt("id") + ", Name: " + rs.getString("name") + ", Party: " + rs.getString("party"));
+            }
+        }
+    }
 }
 
 class Vote {
-    private final int id; // ID of the vote in the database
-    //private final String timestamp;
-    private final int voterID; // ID of the voter in the database
-    private final int candidateID; // ID of the candidate in the database
+    private final String timestamp;
+    private final String voterID;
+    private final String voterName;
+    private final int choice;
 
-    public Vote(int id, int voterID, int candidateID) {
-        this.id = id;
-        //this.timestamp = timestamp;
+    public Vote(String timestamp, String voterID, String voterName, int choice) {
+        this.timestamp = timestamp;
         this.voterID = voterID;
-        this.candidateID = candidateID;
+        this.voterName = voterName;
+        this.choice = choice;
     }
 
-    public int getId() {
-        return id;
+    public String getTimestamp() {
+        return timestamp;
     }
 
-//    public String getTimestamp() {
-//        return timestamp;
-//    }
-
-    public int getVoterID() {
+    public String getVoterID() {
         return voterID;
     }
 
-    public int getCandidateID() {
-        return candidateID;
+    public String getVoterName() {
+        return voterName;
+    }
+
+    public int getChoice() {
+        return choice;
     }
 }
 
-
 class ElectionSystem {
-    private final List<Voter> voters;
+    private final List<Voter> voters = new ArrayList<>();
     private final List<Candidate> candidates = new ArrayList<>();
     private final List<Vote> votes = new ArrayList<>();
-    private Connection connection;
+    private final Connection connection;
 
-    public ElectionSystem(Connection connection, List<Voter> voters) {
+    public ElectionSystem(Connection connection) {
         this.connection = connection;
-        this.voters = voters;
-        connectToDatabase();
         refreshVotersFromDatabase();
         refreshCandidatesFromDatabase();
         refreshVotesFromDatabase();
@@ -226,40 +204,17 @@ class ElectionSystem {
     //     }
     //     return tokens;
     // }
-    private int generateVoteID() {
-        return votes.size() + 1;
-    }
 
-    private void connectToDatabase() {
-        try {
-            Class.forName("org.sqlite.JDBC");
-                connection = DriverManager.getConnection("jdbc:sqlite:election.db");
-            createTablesIfNotExist();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
     private List<String> splitString(String input, char delimiter) {
         return Arrays.asList(input.split(String.valueOf(delimiter)));
     }
 
-    private void createTablesIfNotExist() {
-        try {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS voters (id INTEGER PRIMARY KEY, name TEXT)");
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS candidates (id INTEGER PRIMARY KEY, name TEXT, party TEXT)");
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS votes (id INTEGER PRIMARY KEY, timestamp TEXT, voter_id INTEGER, candidate_id INTEGER, FOREIGN KEY (voter_id) REFERENCES voters(id), FOREIGN KEY (candidate_id) REFERENCES candidates(id))");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
     private void refreshVotersFromDatabase() {
         voters.clear();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM voters");
-            while (resultSet.next()) {
-                voters.add(new Voter(resultSet.getInt("id"), resultSet.getString("name")));
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM voter");
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                voters.add(new Voter(rs.getString("id"), rs.getString("name")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -268,11 +223,10 @@ class ElectionSystem {
 
     private void refreshCandidatesFromDatabase() {
         candidates.clear();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM candidates");
-            while (resultSet.next()) {
-                candidates.add(new Candidate(resultSet.getString("name"), resultSet.getString("party"))); //resultSet.getString("id"),
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM candidates");
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                candidates.add(new Candidate(rs.getString("name"), rs.getString("party")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -281,54 +235,45 @@ class ElectionSystem {
 
     private void refreshVotesFromDatabase() {
         votes.clear();
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("SELECT * FROM votes");
-            while (resultSet.next()) {
-                votes.add(new Vote(resultSet.getInt("id"), resultSet.getInt("voter_id"), resultSet.getInt("candidate_id")));
+        try (PreparedStatement pstmt = connection.prepareStatement("SELECT * FROM votes");
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                votes.add(new Vote(rs.getString("timestamp"), rs.getString("voterid"), rs.getString("votername"), rs.getInt("candidateid")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-
     private void writeVoteToDatabase(Vote vote) {
-        try {
-            refreshVotesFromDatabase();
-            PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO votes (voter_id, candidate_id) VALUES (?, ?)");
-            preparedStatement.setInt(1, vote.getVoterID());
-            preparedStatement.setInt(2, vote.getCandidateID());
-            preparedStatement.executeUpdate();
+        String sql = "INSERT INTO votes (timestamp, voterid, votername, candidateid) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, vote.getTimestamp());
+            pstmt.setString(2, vote.getVoterID());
+            pstmt.setString(3, vote.getVoterName());
+            pstmt.setInt(4, vote.getChoice());
+            pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-
-
-
-    private boolean isVoterVerified(int voterID, String voterName) {
-//        String lowerCaseVoterID = toLowerCase(voterID);
+    private boolean isVoterVerified(String voterID, String voterName) {
+        String lowerCaseVoterID = toLowerCase(voterID);
         String lowerCaseVoterName = toLowerCase(voterName);
-        System.out.println("Helllo i am here! "+lowerCaseVoterName);
-        System.out.println("Total number of voters: " + voters.size());
-        refreshVotersFromDatabase();
-        refreshCandidatesFromDatabase();
-        refreshVotesFromDatabase();
+
         for (Voter voter : voters) {
-            System.out.println("Voter ID: " + voter.getId() + ", Voter Name: " + voter.getName());
-            if (voter.getId()==voterID && toLowerCase(voter.getName()).equals(lowerCaseVoterName)) {
-                System.out.println("Voter with ID " + voterID + " and Name " + voterName + " is verified.");
+            System.out.println(voter.getId()+":"+lowerCaseVoterID+"-"+voter.getName()+":"+lowerCaseVoterName);
+            if (toLowerCase(voter.getId()).equals(lowerCaseVoterID) && toLowerCase(voter.getName()).equals(lowerCaseVoterName)) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean isDoubleVoting(int voterID) {
+    private boolean isDoubleVoting(String voterID) {
         for (Vote vote : votes) {
-            if (vote.getVoterID()==voterID) {
+            if (vote.getVoterID().equals(voterID)) {
                 return true;
             }
         }
@@ -346,14 +291,13 @@ class ElectionSystem {
     public void startVoting() {
         int choice;
         String voterName;
-        int voterID;
+        String voterID;
 
         Scanner scanner = new Scanner(System.in);
 
-
         System.out.println("\n\n #### Please Enter Your Voter ID and Name ####\n\n");
         System.out.print("Voter ID: ");
-        voterID = Integer.parseInt(scanner.next()); // Parse the input String to an int
+        voterID = scanner.next();
         System.out.print("Voter Name: ");
         scanner.nextLine(); // Ignore any newline left in the input buffer
         voterName = scanner.nextLine();
@@ -373,13 +317,11 @@ class ElectionSystem {
         System.out.println("\n\n Input Your Choice (1 - " + (candidates.size() + 1) + ") : ");
         choice = scanner.nextInt();
 
-
-
         // Voting timestamp
         long timestamp = System.currentTimeMillis();
         String timestampStr = String.valueOf(timestamp);
 
-        Vote vote = new Vote(generateVoteID(), voterID, choice);
+        Vote vote = new Vote(timestampStr, voterID, voterName, choice);
         votes.add(vote);
         writeVoteToDatabase(vote);
 
@@ -390,7 +332,7 @@ class ElectionSystem {
         int[] voteCounts = new int[candidates.size() + 1];
 
         for (Vote vote : votes) {
-            int choice = vote.getCandidateID();
+            int choice = vote.getChoice();
             voteCounts[choice]++;
         }
 
@@ -404,7 +346,7 @@ class ElectionSystem {
         int[] voteCounts = new int[candidates.size() + 1];
 
         for (Vote vote : votes) {
-            int choice = vote.getCandidateID();
+            int choice = vote.getChoice();
             voteCounts[choice]++;
         }
 
@@ -451,203 +393,206 @@ class ElectionSystem {
         return str.toLowerCase();
     }
 
-    public void resetElection() {
-        try {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("DELETE FROM candidates");
-            statement.executeUpdate("DELETE FROM votes");
-            statement.executeUpdate("INSERT INTO reset_history (time_date) VALUES (datetime('now'))");
+    public void resetElection(Connection conn) {
+        try (Statement stmt = conn.createStatement()) {
+            // Clear candidates and votes tables
+            stmt.executeUpdate("DELETE FROM candidates");
+            stmt.executeUpdate("DELETE FROM votes");
             System.out.println("Election system reset successful (election details: candidates & votes cleared).");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error resetting election: " + e.getMessage());
         }
     }
 
-    public void hardReset() {
-        try {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("DELETE FROM candidates");
-            statement.executeUpdate("DELETE FROM votes");
-            statement.executeUpdate("DELETE FROM voters");
-            statement.executeUpdate("INSERT INTO reset_history (time_date) VALUES (datetime('now'))");
+
+    public void hardReset(Connection conn) {
+        try (Statement stmt = conn.createStatement()) {
+            // Clear candidates, votes, and voters tables
+            stmt.executeUpdate("DELETE FROM candidates");
+            stmt.executeUpdate("DELETE FROM votes");
+            stmt.executeUpdate("DELETE FROM voter");
             System.out.println("Election system hard reset successful (all details: candidates, votes & voters cleared).");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error performing hard reset: " + e.getMessage());
         }
     }
-
 }
 
+
 public class Main {
+
     public static void main(String[] args) {
-        // Establishing the connection
-        Connection connection = null;
-        try {
-            // Register SQLite JDBC driver
-            Class.forName("org.sqlite.JDBC");
+        // Establish database connection
+        Connection conn = connectToDatabase("election.db");
+        if (conn == null) {
+            System.out.println("Failed to connect to the database.");
+            return;
+        }
 
-            // Connect to the SQLite database
-            String url = "jdbc:sqlite:D:\\java\\project\\OOADJ-Election-Voting-System\\src\\election.db";
-            connection = DriverManager.getConnection(url);
-            System.out.println("Connected to the database.");
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS votes (id INTEGER PRIMARY KEY, timestamp TEXT, voter_id INTEGER, candidate_id INTEGER, FOREIGN KEY (voter_id) REFERENCES voters(id), FOREIGN KEY (candidate_id) REFERENCES candidates(id))");
+        VoterManager voterManager = new VoterManager(conn);
+        ElectionSystem election = new ElectionSystem(conn);
 
-            // Create instances of VoterManager and ElectionSystem with the same connection
-            VoterManager voterManager = new VoterManager(connection);
-            ElectionSystem election = new ElectionSystem(connection, voterManager.getVoters());
+        int mode, choice;
 
-            int mode, choice;
 
-            System.out.println("\n\n ##### Welcome to Election System #####");
-            System.out.println("\n\nSelect mode of operation:");
-            System.out.println(" 1. Registrations (Candidate nominations & Voter addition)");
-            System.out.println(" 2. Election ");
-            System.out.println(" 3. Results");
-            System.out.println(" 4. Reset");
+        System.out.println("\n\n ##### Welcome to Election System #####");
+        System.out.println("\n\nSelect mode of operation:");
+        System.out.println(" 1. Registrations (Candidate nominations & Voter addition)");
+        System.out.println(" 2. Election ");
+        System.out.println(" 3. Results");
+        System.out.println(" 4. Reset");
 
-            System.out.println("\n\n Please enter your choice: ");
-            Scanner scanner = new Scanner(System.in);
-            mode = scanner.nextInt();
-            switch (mode) {
-                case 1:
-                    do {
-                        System.out.println("\n\nRegistrations Mode\n");
-                        System.out.println(" 1. Nominate a Candidate");
-                        System.out.println(" 2. Add a Voter");
-                        System.out.println(" 3. Query Registered Voters");
-                        System.out.println("\n 0. Exit");
+        System.out.println("\n\n Please enter your choice: ");
+        Scanner scanner = new Scanner(System.in);
+        mode = scanner.nextInt();
+        switch (mode) {
+            case 1:
+                do {
+                    System.out.println("\n\nRegistrations Mode\n");
+                    System.out.println(" 1. Nominate a Candidate");
+                    System.out.println(" 2. Add a Voter");
+                    System.out.println(" 3. Query Registered Voters");
+                    System.out.println("\n 0. Exit");
 
-                        System.out.println("\n\n Please enter your choice: ");
-                        scanner = new Scanner(System.in);
-                        choice = scanner.nextInt();
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
 
-                        switch (choice) {
-                            case 1:
-                                System.out.println("\n\n #### Enter the Name of the New Candidate ####\n\n");
-                                scanner.nextLine();
-                                String candidateName = scanner.nextLine();
-                                System.out.println("\n\n #### Enter the Name of the Candidate's Party ####\n\n");
-                                String partyName = scanner.nextLine();
-                                CandidateManager.addCandidate(candidateName, partyName);
-                                break;
-                            case 2:
-                                System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
-                                scanner.nextLine();
-                                String name = scanner.nextLine();
-                                int voterID = voterManager.addVoter(name);
-                                System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
-                                break;
-                            case 3:
-                                voterManager.refreshVotersFromDatabase();
-                                voterManager.displayVoters();
-                                break;
-                            case 0:
-                                System.out.println("\n Logging off...\n");
-                                break;
-                        }
+                    switch (choice) {
+                        case 1:
+                            System.out.println("\n\n #### Enter the Name of the New Candidate ####\n\n");
+                            scanner.nextLine();
+                            String candidateName = scanner.nextLine();
+                            System.out.println("\n\n #### Enter the Name of the Candidate's Party ####\n\n");
+                            String partyName = scanner.nextLine();
+                            CandidateManager.addCandidate(conn,candidateName, partyName);
+                            break;
+                        case 2:
+                            System.out.println("\n\n #### Enter the Name of the New Voter ####\n\n");
+                            scanner.nextLine();
+                            String name = scanner.nextLine();
+                            String voterID = voterManager.addVoter(name);
+                            System.out.println("\n New Voter " + name + " with Voter ID " + voterID + " added successfully!");
+                            break;
+                        case 3:
+                            voterManager.displayVoters();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
                     }
-                    while (choice != 0);
-                    break;
-
-                case 2:
-                    do {
-                        System.out.println("\n\nElection Mode\n");
-                        System.out.println(" 1. Cast Vote");
-                        System.out.println(" 2. Check Turnout");
-                        System.out.println("\n 0. Exit");
-
-                        System.out.println("\n\n Please enter your choice: ");
-                        scanner = new Scanner(System.in);
-                        choice = scanner.nextInt();
-
-                        switch (choice) {
-                            case 1:
-                                election.startVoting();  // Pass the connection object
-                                break;
-                            case 2:
-                                election.checkTurnout();
-                                break;
-                            case 0:
-                                System.out.println("\n Logging off...\n");
-                                break;
-                        }
-                    }
-                    while (choice != 0);
-                    break;
-
-
-                case 3:
-                    do {
-                        System.out.println("\n\nResult Mode\n");
-                        System.out.println(" 1. Find Leading Candidate");
-                        System.out.println(" 2. Get Detailed Vote Count");
-                        System.out.println("\n 0. Exit");
-
-                        System.out.println("\n\n Please enter your choice: ");
-                        scanner = new Scanner(System.in);
-                        choice = scanner.nextInt();
-
-                        switch (choice) {
-                            case 1:
-                                election.getLeadingCandidate();
-                                break;
-                            case 2:
-                                election.votesCount();
-                                break;
-                            case 0:
-                                System.out.println("\n Logging off...\n");
-                                break;
-                        }
-                    }
-                    while (choice != 0);
-                    break;
-
-                case 4:
-                    do {
-                        System.out.println("\n\nReset Mode\n");
-                        System.out.println(" 1. Reset Election");
-                        System.out.println(" 2. Hard Reset (clear all details)");
-                        System.out.println("\n 0. Exit");
-
-                        System.out.println("\n\n Please enter your choice: ");
-                        scanner = new Scanner(System.in);
-                        choice = scanner.nextInt();
-
-                        switch (choice) {
-                            case 1:
-                                System.out.println("Under development"); // TODO
-                                break;
-                            case 2:
-                                System.out.println("Under development"); // TODO
-                                break;
-                            case 0:
-                                System.out.println("\n Logging off...\n");
-                                break;
-                        }
-                    }
-                    while (choice != 0);
-                    break;
-
-            }
-        } catch (ClassNotFoundException e) {
-            System.out.println("SQLite JDBC driver not found.");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.out.println("Connection to the database failed.");
-            e.printStackTrace();
-        } finally {
-            // Close the connection in the finally block
-            try {
-                if (connection != null) {
-                    connection.close();
-                    System.out.println("Connection closed.");
                 }
-            } catch (SQLException e) {
-                System.out.println("Error closing the connection.");
-                e.printStackTrace();
-            }
+                while (choice != 0);
+                break;
+
+            case 2:
+                do {
+                    System.out.println("\n\nElection Mode\n");
+                    System.out.println(" 1. Cast Vote");
+                    System.out.println(" 2. Check Turnout");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.startVoting();
+                            break;
+                        case 2:
+                            election.checkTurnout();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 3:
+                do {
+                    System.out.println("\n\nResult Mode\n");
+                    System.out.println(" 1. Find Leading Candidate");
+                    System.out.println(" 2. Get Detailed Vote Count");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.getLeadingCandidate();
+                            break;
+                        case 2:
+                            election.votesCount();
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
+            case 4:
+                do {
+                    System.out.println("\n\nReset Mode\n");
+                    System.out.println(" 1. Reset Election");
+                    System.out.println(" 2. Hard Reset (clear all details)");
+                    System.out.println("\n 0. Exit");
+
+                    System.out.println("\n\n Please enter your choice: ");
+                    scanner = new Scanner(System.in);
+                    choice = scanner.nextInt();
+
+                    switch (choice) {
+                        case 1:
+                            election.resetElection(conn);
+                            break;
+                        case 2:
+                            election.hardReset(conn);
+                            break;
+                        case 0:
+                            System.out.println("\n Logging off...\n");
+                            break;
+                    }
+                }
+                while (choice != 0);
+                break;
+
         }
     }
+    private static Connection connectToDatabase(String databaseName) {
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection("jdbc:sqlite:" + databaseName);
+            System.out.println("Connected to the database.");
+            createTables(conn);
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+        return conn;
+    }
+    private static void createTables(Connection conn) {
+        try (Statement stmt = conn.createStatement()) {
+            // Create voter table
+            stmt.execute("CREATE TABLE IF NOT EXISTS voter (id TEXT PRIMARY KEY, name TEXT)");
 
+            // Create candidates table
+            stmt.execute("CREATE TABLE IF NOT EXISTS candidates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, party TEXT)");
+
+            // Create votes table
+            stmt.execute("CREATE TABLE IF NOT EXISTS votes (timestamp INTEGER PRIMARY KEY, voterid TEXT, votername TEXT, candidateid TEXT)");
+
+            // Create reset_history table
+            stmt.execute("CREATE TABLE IF NOT EXISTS reset_history (id INTEGER PRIMARY KEY AUTOINCREMENT, time_date TIME)");
+
+            System.out.println("Tables created successfully.");
+        } catch (SQLException e) {
+            System.err.println("Error creating tables: " + e.getMessage());
+        }
+    }
 }
