@@ -1,0 +1,63 @@
+/* Table */
+table {
+    width: auto;
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse; /* Collapse table borders */
+    background-color: #f0f0f0; /* Light gray background */
+    border: 1px solid #000; /* Black border */
+}
+
+th, td {
+    border: 1px solid #ddd; /* Light gray border for cells */
+    text-align: center;
+    padding: 8px;
+    white-space: nowrap;
+}
+
+th {
+    background-color: #2c3e50; /* Dark blue background for header cells */
+    color: white;
+}
+
+/* Responsive Table */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Hover Effect for Navigation */
+li a:hover {
+    background-color: rgb(0, 75, 151); /* Dark blue background on hover */
+}
+
+/*
+table {
+border: 1px solid black;
+  width: auto;
+   table-layout: auto;
+    margin-left: auto; 
+  margin-right: auto;
+ 
+}
+
+
+th, td {
+border: 1px solid #ddd;
+  text-align: center;
+  padding: 8px;
+  white-space: nowrap;
+  
+   
+}
+
+th {
+  background-color: #04AA6D;
+  color: white;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+*/
