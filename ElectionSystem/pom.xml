@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com</groupId>
-	<artifactId>MySpring_Boot_aa23v_VotingApp_Final</artifactId>
+	<artifactId>ElectionSystem</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>MySpring_Boot_aa23v_VotingApp_Final</name>
+	<name>ElectionSystem</name>
 	<description>Voting App</description>
 	<properties>
 		<java.version>17</java.version>

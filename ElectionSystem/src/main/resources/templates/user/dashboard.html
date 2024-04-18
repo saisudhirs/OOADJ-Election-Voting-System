@@ -36,24 +36,24 @@
 							
 							<tr>
 								<th>Name: </th>
-								<th> <h4 th:text="${user.name}"></h4></th>
+								<td> <h4 th:text="${user.name}"></h4></td>
 							</tr>
 							
 							
 						
 								<tr>
 									<th>Email Id: </th>
-									<th><h4 th:text="${user.email}"></h4> </th>
+									<td><h4 th:text="${user.email}"></h4> </td>
 								</tr>
 					
 								<tr>
 									<th>Phone No.: </th>
-									<th><h4 th:text="${user.phone}"></h4> </th>
+									<td><h4 th:text="${user.phone}"></h4> </td>
 								</tr>
 								
 								<tr>
 									<th>Status.: </th>
-									<th>
+									<td>
 										
 										<div th:if=${user.status}>
 											 <h4 th:text="${user.status}"></h4> 
@@ -63,7 +63,7 @@
 								   			 <h4>Not Voted</h4>
 								   		</div>
 									
-									</th>
+									</td>
 								</tr>
 
 								

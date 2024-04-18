@@ -3,12 +3,19 @@
 <head>
 	<meta charset="UTF-8" />
 	<title>Document</title>
+	<style th:inline="css">        
+        h1 {
+            color: /*[[${headingColor}]]*/ #ad3737; 
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
 	<section class = "center">
 	
 
-<h1>About</h1>
+		<h1>About</h1>
 		<div th:if=${session.msg}>
 			<h3 th:text="${session.msg}" style="color:red"></h3>
    		
